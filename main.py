@@ -171,6 +171,9 @@ async def add(ctx):
             else:
                 await ctx.reply(birdcount_users[ctx.author.id].add_bird(segments[1], int(segments[2])))
 
+        elif len(segments) == 2:
+            await ctx.reply(birdcount_users[ctx.author.id].add_bird(segments[1], 1))
+
         else:
             await ctx.reply('Please use command in the correct format.')
 
