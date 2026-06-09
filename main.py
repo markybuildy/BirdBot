@@ -37,7 +37,7 @@ class BirdCount:
             "rename": '.rename <old_name> <new_name>',
             "done": '.done',
             "print": '.print',
-            'start': '.start',
+            "start": '.start',
             "set": '.set <bird_name> <count>'
         }
 
@@ -45,10 +45,11 @@ class BirdCount:
     def add_bird(self, bird_name, count):
         if bird_name in self.birds:
             self.birds[bird_name] += count
-            return ("Added **" + str(count) + "x** " + bird_name.capitalize() + ". **" + str(self.birds[bird_name]) + "** seen total!")
+            #return f"Added **{count}x** {bird_name}. **{bird_name}** seen total!"
+            return ("Added **" + str(count) + "x** " + bird_name + ". **" + str(self.birds[bird_name]) + "** seen total!")
         else:
             self.birds[bird_name] = count
-            return ("Added **" + str(count) + "x** " + bird_name.capitalize() + ".")
+            return ("Added **" + str(count) + "x** " + bird_name + ".")
 
     def remove_bird(self, bird_name, count):
         if bird_name in self.birds:
@@ -82,16 +83,12 @@ class BirdCount:
             else:
                 return('"' + new_name + '" already exists.')
 
-
         else:
             return('"' + old_name + '" does not exist.')
 
     def set(self, bird_name, count):
-        if bird_name in self.birds:
-            self.birds[bird_name] = count
-            return('Set "' + bird_name + '" to **' + str(count) + '**.')
-        else:
-            return('"' + bird_name + '" does not exist.')
+        self.birds[bird_name] = count
+        return('Set "' + bird_name + '" to **' + str(count) + '**.')
 
 birdcount_users = {}
 
@@ -161,87 +158,101 @@ async def add(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
-    if ctx.author.id in birdcount_users:
-        if segments[1].isdigit():
-            await ctx.reply("Please enter a valid bird name.")
-
-        elif len(segments) == 3:
-            if int(segments[2]) == 0 or not segments[2].isdigit():
-                await ctx.reply("Please enter a valid quantity.")
-            else:
-                await ctx.reply(birdcount_users[ctx.author.id].add_bird(segments[1], int(segments[2])))
-
-        elif len(segments) == 2:
-            await ctx.reply(birdcount_users[ctx.author.id].add_bird(segments[1], 1))
-
-        else:
-            await ctx.reply('Please use command in the correct format.')
-
-    else:
+    if not ctx.author.id in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
+
+    if segments[-1].isdigit():
+        count = int(segments[-1])
+        name = " ".join(segments[1:-1])
+
+        if count < 1:
+            await ctx.reply("Please enter a valid quantity.")
+            return
+    else:
+        count = 1
+        name = " ".join(segments[1:])
+
+    if not name:
+        await ctx.reply("Please enter a name.")
+        return
+
+    await ctx.reply(birdcount_users[ctx.author.id].add_bird(name, count))
 
 @bot.command()
 async def remove(ctx):
-    # birdCount = BirdCount()
-
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
-    if ctx.author.id not in birdcount_users:
+    if not ctx.author.id in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
+        return
 
+    if segments[-1].isdigit():
+        count = int(segments[-1])
+        name = " ".join(segments[1:-1])
+
+        if count < 1:
+            await ctx.reply("Please enter a valid quantity.")
+            return
     else:
-        if len(segments) == 2:
-            if segments[1].lower() in birdcount_users[ctx.author.id].birds.keys():
-                birdcount_users[ctx.author.id].birds.pop(segments[1].lower())
-                await ctx.reply('Removed ' + segments[1].lower() + '.')
-            else:
-                await ctx.reply('*"' + segments[1] + '"* does not exist.')
+        count = 1
+        name = " ".join(segments[1:])
 
-        elif len(segments) == 3:
-            if int(segments[2]) == 0 or not segments[2].isdigit():
-                await ctx.reply("Please enter a valid quantity.")
-            else:
-                await ctx.reply(birdcount_users[ctx.author.id].remove_bird(segments[1].lower(), int(segments[2])))
+    if not name:
+        await ctx.reply("Please enter a name.")
+        return
 
-        else:
-            await ctx.reply('Please use command in the correct format.')
+    await ctx.reply(birdcount_users[ctx.author.id].remove_bird(name, count))
 
 @bot.command()
 async def set(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
-    if ctx.author.id in birdcount_users:
-        if len(segments) == 3:
-            if segments[1].isdigit():
-                await ctx.reply('Please input a valid bird name.')
-            elif not segments[2].isdigit():
-                await ctx.reply('Please input a valid quantity.')
-            else:
-                await ctx.reply(birdcount_users[ctx.author.id].set(segments[1], int(segments[2])))
-        else:
-            await ctx.reply('Please use command in the correct format.')
-
-    else:
+    if not ctx.author.id in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
+        return
+
+    if segments[-1].isdigit():
+        count = int(segments[-1])
+        name = " ".join(segments[1:-1])
+
+        if count < 1:
+            await ctx.reply("Please enter a valid quantity.")
+            return
+    else:
+        count = 1
+        name = " ".join(segments[1:])
+
+    if not name:
+        await ctx.reply("Please enter a name.")
+        return
+
+    await ctx.reply(birdcount_users[ctx.author.id].set(name, count))
 
 @bot.command()
 async def rename(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
-    if ctx.author.id in birdcount_users:
-        if len(segments) == 3:
-            if segments[1].isdigit() or segments[2].isdigit():
-                await ctx.reply('Please input valid bird names.')
-            else:
-                await ctx.reply(birdcount_users[ctx.author.id].rename(segments[1], segments[2]))
-        else:
-            await ctx.reply('Please use command in the correct format.')
-
-    else:
+    if not ctx.author.id in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
+
+    # Searches for the longest match
+    longest = 0
+
+    for i in range(1, len(segments)):
+        trial_name = " ".join(segments[1:i])
+        if trial_name in birdcount_users[ctx.author.id].birds:
+            longest = i
+
+    if longest == 0:
+        await ctx.reply("Name not found in current list")
+        return
+
+    old = " ".join(segments[1:longest])
+    new = " ".join(segments[longest:])
+    await ctx.reply(birdcount_users[ctx.author.id].rename(old, new))
 
 @bot.command()
 async def print(ctx):
@@ -269,12 +280,6 @@ async def done(ctx):
 
     else:
         if len(birdcount_users[ctx.author.id].birds) != 0:
-            # result = 'Total birds seen: \n'
-            # result += (birdcount_users[ctx.author.id].print_results())
-            # result += ('\n' + '\n' + "What a fruitful session!")
-            # await ctx.reply(result)
-            # birdcount_users.pop(ctx.author.id)
-
             temp = '\n'
             temp += (birdcount_users[ctx.author.id].print_results())
             temp += ('\n' + '\n' + '**What a fruitful session!** 😄 😄 ')
