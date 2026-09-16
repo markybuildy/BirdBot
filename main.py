@@ -6,6 +6,12 @@ import logging
 from dotenv import load_dotenv
 import os
 
+import csv, urllib.request, zipfile, io
+
+
+
+# Discord stuff.
+
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
 
@@ -15,6 +21,23 @@ intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix='.', intents=intents, help_command=None)
+
+
+
+# Get bird banding codes.
+
+my_url = 'https://www.birdpop.org/docs/misc/IBPAOU.zip'
+
+with urllib.request.urlopen(my_url) as response:
+    my_splendiferous_read = response.read()
+
+with zipfile.ZipFile(io.BytesIO(my_splendiferous_read)) as my_zip:
+    with my_zip.open(my_zip.namelist()[0]) as my_delightful_file:
+        my_sexy_csv = my_delightful_file.read().decode('utf-8')
+
+my_wondrous_reader = csv.DictReader(io.StringIO(my_sexy_csv))
+
+my_lovely_codes = {row['SPEC']: row['COMMONNAME'] for row in my_wondrous_reader}
 
 class BirdCount:
     def __init__(self):
@@ -41,28 +64,40 @@ class BirdCount:
             "set": '.set <bird_name> <count>'
         }
 
-
     def add_bird(self, bird_name, count):
         if bird_name in self.birds:
             self.birds[bird_name] += count
             return f"Added **{count}x** {bird_name}. **{self.birds[bird_name]}** seen total!"
+
+        elif bird_name.upper() in my_lovely_codes:
+            if my_lovely_codes[bird_name.upper()] in self.birds:
+                self.birds[my_lovely_codes[bird_name.upper()]] += count
+                return f"Added **{count}x** {my_lovely_codes[bird_name.upper()]}. **{self.birds[my_lovely_codes[bird_name.upper()]]}** seen total!"
+            else:
+                self.birds[my_lovely_codes[bird_name.upper()]] = count
+                return f"Added **{count}x** {my_lovely_codes[bird_name.upper()]}."
+
         else:
             self.birds[bird_name] = count
             return f"Added **{count}x** {bird_name}."
 
     def remove_bird(self, bird_name, count):
+        temp_name = ''
         if bird_name in self.birds:
-            if count > self.birds[bird_name]:
+            temp_name = bird_name
+        elif bird_name.upper() in my_lovely_codes and my_lovely_codes[bird_name.upper()] in self.birds:
+            temp_name = my_lovely_codes[bird_name.upper()]
+        if temp_name:
+            if count > self.birds[temp_name]:
                 return "Not enough birds to remove."
             else:
-                self.birds[bird_name] -= count
-                if self.birds[bird_name] == 0:
-                    self.birds.pop(bird_name)
-                    return f"Removed **{count}x** {bird_name.capitalize()}. **0** remain."
-                return f"Removed **{count}x** {bird_name.capitalize()}. **{self.birds[bird_name]}** remain."
+                self.birds[temp_name] -= count
+                if self.birds[temp_name] == 0:
+                    self.birds.pop(temp_name)
+                    return f"Removed **{count}x** {temp_name}. **0** remain."
+                return f"Removed **{count}x** {temp_name}. **{self.birds[temp_name]}** remain."
+        return f'"{bird_name}" does not exist.'
 
-        else:
-            return f'"{bird_name}" does not exist.'
 
     def print_results(self):
         if len(self.birds) != 0:
@@ -74,16 +109,34 @@ class BirdCount:
             return "No birds seen. Better luck next time!"
 
     def rename(self, old_name, new_name):
+        temp_name = ''
         if old_name in self.birds:
-            if new_name not in self.birds:
-                self.birds[new_name] = self.birds[old_name]
-                self.birds.pop(old_name)
-                return f"Renamed **{old_name}** to **{new_name}**."
-            else:
-                return f'"{new_name}" already exists.'
+            temp_name = old_name
+        elif old_name.upper() in my_lovely_codes and my_lovely_codes[old_name.upper()] in self.birds:
+            temp_name = my_lovely_codes[old_name.upper()]
 
-        else:
-            return f'"{old_name}" does not exist.'
+        if temp_name:
+            new_temp = ''
+            new_bool = False
+            if new_name in self.birds:
+                new_temp = new_name
+            elif new_name.upper() in my_lovely_codes:
+                new_bool = True
+                if my_lovely_codes[new_name.upper()] in self.birds:
+                    new_temp = my_lovely_codes[new_name.upper()]
+
+            if not new_temp:
+                if not new_bool:
+                    self.birds[new_name] = self.birds[temp_name]
+                    self.birds.pop(temp_name)
+                    return f"Renamed **{temp_name}** to **{new_name}**."
+                self.birds[my_lovely_codes[new_name.upper()]] = self.birds[temp_name]
+                self.birds.pop(temp_name)
+                return f"Renamed **{temp_name}** to **{my_lovely_codes[new_name.upper()]}**."
+
+            return f'"{new_temp}" already exists.'
+
+        return f'"{old_name}" does not exist.'
 
     def set(self, bird_name, count):
         self.birds[bird_name] = count
@@ -260,11 +313,14 @@ async def rename(ctx):
 
     for i in range(1, len(segments)):
         trial_name = " ".join(segments[1:i])
+        if trial_name.upper() in my_lovely_codes and my_lovely_codes[trial_name.upper()] in birdcount_users[ctx.author.id].birds:
+            longest = i
+            break
         if trial_name in birdcount_users[ctx.author.id].birds:
             longest = i
 
     if longest == 0:
-        await ctx.reply("Name not found in current list")
+        await ctx.reply("Name not found in current list.")
         return
 
     old = " ".join(segments[1:longest])
