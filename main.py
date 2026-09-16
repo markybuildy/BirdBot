@@ -36,7 +36,7 @@ class BirdCount:
             "remove": '.remove <bird_name> <count>',
             "rename": '.rename <old_name> <new_name>',
             "done": '.done',
-            "print": '.print',
+            "print": '.print <@user>',
             "start": '.start',
             "set": '.set <bird_name> <count>'
         }
@@ -45,50 +45,49 @@ class BirdCount:
     def add_bird(self, bird_name, count):
         if bird_name in self.birds:
             self.birds[bird_name] += count
-            #return f"Added **{count}x** {bird_name}. **{bird_name}** seen total!"
-            return ("Added **" + str(count) + "x** " + bird_name + ". **" + str(self.birds[bird_name]) + "** seen total!")
+            return f"Added **{count}x** {bird_name}. **{self.birds[bird_name]}** seen total!"
         else:
             self.birds[bird_name] = count
-            return ("Added **" + str(count) + "x** " + bird_name + ".")
+            return f"Added **{count}x** {bird_name}."
 
     def remove_bird(self, bird_name, count):
         if bird_name in self.birds:
             if count > self.birds[bird_name]:
-                return("Not enough birds to remove.")
+                return "Not enough birds to remove."
             else:
                 self.birds[bird_name] -= count
                 if self.birds[bird_name] == 0:
                     self.birds.pop(bird_name)
-                    return ("Removed **" + str(count) + "x** " + bird_name.capitalize() + ". **0** remain.")
-                return("Removed **" + str(count) + "x** " + bird_name.capitalize() + ". **" + str(self.birds[bird_name]) + "** remain.")
+                    return f"Removed **{count}x** {bird_name.capitalize()}. **0** remain."
+                return f"Removed **{count}x** {bird_name.capitalize()}. **{self.birds[bird_name]}** remain."
 
         else:
-            return('"' + bird_name + '" does not exist.')
+            return f'"{bird_name}" does not exist.'
 
     def print_results(self):
         if len(self.birds) != 0:
             result = ''
             for bird in self.birds:
-                result += ('\n- '+ bird + " **x" + str(self.birds.get(bird)) + '**')
+                result += f'\n- {bird} **x{self.birds.get(bird)}**'
             return result
         else:
-            return("No birds seen. Better luck next time!")
+            return "No birds seen. Better luck next time!"
 
     def rename(self, old_name, new_name):
         if old_name in self.birds:
             if new_name not in self.birds:
                 self.birds[new_name] = self.birds[old_name]
                 self.birds.pop(old_name)
-                return("Renamed **" + old_name + "** to **" + new_name + "**.")
+                return f"Renamed **{old_name}** to **{new_name}**."
             else:
-                return('"' + new_name + '" already exists.')
+                return f'"{new_name}" already exists.'
 
         else:
-            return('"' + old_name + '" does not exist.')
+            return f'"{old_name}" does not exist.'
 
     def set(self, bird_name, count):
         self.birds[bird_name] = count
-        return('Set "' + bird_name + '" to **' + str(count) + '**.')
+        return f'Set "{bird_name}" to **{count}**.'
 
 birdcount_users = {}
 
@@ -117,6 +116,14 @@ async def on_message(message):
         else:
             await message.reply("FUCK YOU!!!")
 
+    if "hello birdbot" in message.content.lower():
+        r = random.randint(1, 7)
+        if r <= 3:
+            await message.reply("Hi!")
+        elif r <= 6:
+            await message.reply("Lovely day for birding!")
+        else:
+            await message.reply("FUCK YOU!!!")
 
     await bot.process_commands(message)
 
@@ -129,7 +136,15 @@ async def start(ctx):
         await ctx.reply('You already have an active checklist!')
     else:
         birdcount_users[ctx.author.id] = BirdCount()
-        await ctx.reply(f'Let the adventure begin, <@{ctx.author.id}>!')
+        r = random.randint(1,4)
+        if r == 1:
+            await ctx.reply(f'Let the adventure begin, <@{ctx.author.id}>!')
+        elif r == 2:
+            await ctx.reply(f'Best of luck, <@{ctx.author.id}>!')
+        elif r == 3:
+            await ctx.reply(f'The best time to go birding was yesterday. The second best time is now.')
+        else:
+            await ctx.reply(f'Checklist started for <@{ctx.author.id}>.')
 
 @bot.command()
 async def help(ctx):
@@ -149,7 +164,8 @@ async def help(ctx):
         if segments[1].lower() in birCount.formats:
             await ctx.reply(birCount.formats[segments[1]])
         else:
-            await ctx.reply('"' + segments[1] + '" is not a valid command.')
+            await ctx.reply(f'"{segments[1]}" is not a valid command.')
+
 
     # await ctx.send(f"Hello <@{801956525454917634}>!")
 
@@ -160,6 +176,7 @@ async def add(ctx):
 
     if not ctx.author.id in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
+        return
 
     if segments[-1].isdigit():
         count = int(segments[-1])
@@ -257,19 +274,37 @@ async def rename(ctx):
 @bot.command()
 async def print(ctx):
     userinput = ctx.message.content.lower()
+    segments = userinput.split()
+    # await ctx.reply(f'`{segments[-1]} {ctx.author.id}`')
+    if len(segments) == 1:
+        if ctx.author.id not in birdcount_users:
+            await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
 
-    if ctx.author.id not in birdcount_users:
-        await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
-
-    else:
-        if len(birdcount_users[ctx.author.id].birds) != 0:
-            temp = '\n'
-            temp += (birdcount_users[ctx.author.id].print_results())
-            temp += ('\n' + '\n' + '**Keep it up, champ!** 🤩')
-            embed = discord.Embed(title = "Current checklist:", description=temp, colour=discord.Colour.green())
-            await ctx.reply(embed=embed)
         else:
-            await ctx.reply("You haven't seen any birds yet. 🥀🥀")
+            if len(birdcount_users[ctx.author.id].birds) != 0:
+                temp = '\n'
+                temp += (birdcount_users[ctx.author.id].print_results())
+                temp += ('\n' + '\n' + f'**Keep it up, <@{ctx.author.id}>!** 🤩')
+                embed = discord.Embed(title = f"Current checklist for {ctx.author.display_name}:", description=temp, colour=discord.Colour.green())
+                await ctx.reply(embed=embed)
+            else:
+                await ctx.reply("You haven't seen any birds yet. 🥀🥀")
+    else:
+        temp_str = int(str(segments[1])[2:-1])
+
+        if temp_str not in birdcount_users:
+            await ctx.reply(f"No checklist active for {segments[1]}.")
+
+        else:
+            if len(birdcount_users[temp_str].birds) != 0:
+                temp = '\n'
+                temp += (birdcount_users[temp_str].print_results())
+                temp += ('\n' + '\n' + f"**All in a day's work for {segments[1]}.**")
+                temp_user = ctx.guild.get_member(temp_str)
+                embed = discord.Embed(title=f"Current checklist for {temp_user.display_name}:", description=temp, colour=discord.Colour.green())
+                await ctx.reply(embed=embed)
+            else:
+                await ctx.reply(f"{segments[1]} hasn't seen any birds yet. 🥀🥀")
 
 @bot.command()
 async def done(ctx):
