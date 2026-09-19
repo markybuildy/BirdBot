@@ -51,7 +51,7 @@ if os.path.exists('avilist_taxa.csv'):
         bird_order = {row['English (United States)']: row['Sequence'] for row in the_other_reader}
 
 else:
-    print("Please follow instructions to download AviList taxonomy data.")
+    print("Please download AviList taxonomy data.")
 
 
 class BirdCount:
@@ -583,7 +583,8 @@ async def users(ctx):
     temp = ''
 
     for user in birdcount_users:
-        temp += f'\n- <@{user}>: **{len(birdcount_users[user].birds)}** species seen'
+        if ctx.guild.get_member(int(user)):
+            temp += f'\n- <@{user}>: **{len(birdcount_users[user].birds)}** species seen'
 
     temp += '\n' + "\n**The birds aren't gonna bird themselves!**"
     embed = discord.Embed(title="Currently active checklists:", description=temp, colour=discord.Colour.green())
