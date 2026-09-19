@@ -8,8 +8,9 @@ BirdBot is my first attempt at making a Discord bot, retroactive to 2025-07-18. 
 ## Usage Guide
 
 In Discord, view list of commands with the `.help` command.
+#### **Note:** BirdBot relies heavily on [IBP/AOS 4-letter alpha codes](https://www.birdpop.org/pages/birdSpeciesCodes.php). Other birds are addable but not natively supported.
 
-### Setup (Windows)
+## Setup (Windows)
 
 **1)** Clone the repository:
 ```
@@ -28,6 +29,7 @@ pip install -r requirements.txt
 ```
 DISCORD_TOKEN=<DISCORD BOT TOKEN HERE>
 ```
+
 **4)** Run the bot with:
 ```
 python main.py
@@ -42,3 +44,7 @@ python main.py
 
 &nbsp; &nbsp; &nbsp; &nbsp; Thanks are owed to [Julian Poon](https://github.com/cucumberbolts), who helped me with writing and troubleshooting BirdBot, and who ran a Tailscale server on his Raspberry Pi for me to connect to and bypass the Chinese firewall.
 
+## Credits
+
+- BirdBot accesses and utilizes 4-letter alpha codes from the [Institute for Bird Populations/American Ornithological Society](https://www.birdpop.org/pages/birdSpeciesCodes.php).
+- BirdBot uses the [AviList checklist](https://www.avilist.org/checklist/v2025b/) for sorting birds taxonomically.
