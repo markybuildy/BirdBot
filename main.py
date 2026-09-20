@@ -138,7 +138,7 @@ class BirdCount:
             elif sort == 'chrono':
                 for bird in sorted(self.birdtimes.items(), key = lambda pair: pair[1]):
                     result += f'\n- {bird[0]} **x{self.birds.get(bird[0])}**'
-            elif sort == 'taxonomy':
+            else:
                 current_bird_order = {}
                 fake_birds = []
                 for bird in self.birds.keys():
@@ -244,7 +244,7 @@ if not os.path.exists('birdcount_users.pickle') or os.path.getsize('birdcount_us
 with open('birdcount_users.pickle', 'rb') as f:
     birdcount_users = pickle.load(f)
 
-birdusers_sort = {}
+birdusers_sort = {user: "taxonomy" for user in birdcount_users}
 
 sort_aliases = {'alpha': 'alpha', 'alphabet': 'alpha', 'alphabetic': 'alpha', 'alphabetical': 'alpha', 'alphabetically': 'alpha',
                 'chrono': 'chrono', 'chronological': 'chrono', 'chronologically': 'chrono', 'time': 'chrono', 'timed': 'chrono',
@@ -299,7 +299,7 @@ async def start(ctx):
         birdcount_users[ctx.author.id] = BirdCount()
         with open('birdcount_users.pickle', 'wb') as f:
             pickle.dump(birdcount_users, f)
-        birdusers_sort[ctx.author.id] = "chrono"
+        birdusers_sort[ctx.author.id] = "taxonomy"
         r = random.randint(1,4)
         if r == 1:
             await ctx.reply(f'Let the adventure begin, <@{ctx.author.id}>!')
@@ -528,7 +528,7 @@ async def print(ctx):
         else:
             if len(birdcount_users[temp_str].birds) != 0:
                 temp = '\n'
-                temp += (birdcount_users[temp_str].print_results(birdusers_sort[segments[1]]))
+                temp += (birdcount_users[temp_str].print_results(birdusers_sort[int(segments[1][2:-1])]))
                 temp += ('\n' + '\n' + f"**All in a day's work for {segments[1]}.** 😎")
                 temp_user = ctx.guild.get_member(temp_str)
                 embed = discord.Embed(title=f"Current checklist for {temp_user.display_name}:", description=temp, colour=discord.Colour.green())
