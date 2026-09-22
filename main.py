@@ -577,7 +577,7 @@ async def sort(ctx):
 @bot.command()
 async def users(ctx):
     if len(birdcount_users) == 0:
-        await ctx.reply("No active checklists.")
+        await ctx.reply("No active checklists. 😢")
         return
 
     temp = ''
@@ -585,6 +585,10 @@ async def users(ctx):
     for user in birdcount_users:
         if ctx.guild.get_member(int(user)):
             temp += f'\n- <@{user}>: **{len(birdcount_users[user].birds)}** species seen'
+
+    if not temp:
+        await ctx.reply("No active checklists. 😢")
+        return
 
     temp += '\n' + "\n**The birds aren't gonna bird themselves!**"
     embed = discord.Embed(title="Currently active checklists:", description=temp, colour=discord.Colour.green())
