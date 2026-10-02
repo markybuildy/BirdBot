@@ -58,6 +58,8 @@ class BirdCount:
     def __init__(self):
         self.birds = {}
         self.birdtimes = {}
+        self.start_date = ''
+        self.start_timestamp = 0
         self.commands = ['add','done','help','print','remove','rename', 'set']
         self.cmdhelp = {
             "add": "Add birds.",
@@ -297,6 +299,8 @@ async def start(ctx):
         await ctx.reply('You already have an active checklist!')
     else:
         birdcount_users[ctx.author.id] = BirdCount()
+        birdcount_users[ctx.author.id].start_date = time.strftime('%m/%d/%Y %H:%M', time.localtime(time.time()))
+        birdcount_users[ctx.author.id].start_timestamp = time.time()
         with open('birdcount_users.pickle', 'wb') as f:
             pickle.dump(birdcount_users, f)
         birdusers_sort[ctx.author.id] = "taxonomy"
@@ -543,17 +547,32 @@ async def done(ctx):
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
         return
 
-    if len(birdcount_users[ctx.author.id].birds) != 0:
+    user = birdcount_users[ctx.author.id]
+
+    if len(user.birds) != 0:
         temp = '\n'
-        temp += (birdcount_users[ctx.author.id].print_results(birdusers_sort[ctx.author.id]))
+        temp += (user.print_results(birdusers_sort[ctx.author.id]))
         temp += ('\n' + '\n' + '**What a fruitful session!** 😄 😄 ')
         embed = discord.Embed(title="Total birds seen:", description=temp, colour=discord.Colour.green())
-        embed.set_footer(text=f"Species seen: {len(birdcount_users[ctx.author.id].birds)}")
+        embed.set_footer(text=f"Species seen: {len(user.birds)}")
         await ctx.reply(embed=embed)
+
+        end_timestamp = time.time()
+        duration = round((end_timestamp - user.start_timestamp) / 60)
+        segments = user.start_date.split()
+
+        with open(f'{ctx.author.id}.ebird', 'w', newline='') as csvfile:
+            birdwriter = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
+            for bird in user.birds:
+                birdwriter.writerow([bird] + [''] * 2 + [user.birds[bird], '', 'Please select a location.'] + [''] * 2 + [segments[0], segments[1], 'BC', 'CA', '', '', duration] + [''] * 4)
+
+        await ctx.reply('Here is your exported checklist! For further instructions, refer to [GitHub](<https://github.com/markybuildy/BirdBot/blob/main/README.md#importing-a-checklist-to-ebird>).', file=discord.File(f'{ctx.author.id}.ebird'))
+
     else:
-        await ctx.reply(birdcount_users[ctx.author.id].print_results(birdusers_sort[ctx.author.id]))
+        await ctx.reply(user.print_results(birdusers_sort[ctx.author.id]))
 
     birdcount_users.pop(ctx.author.id)
+    os.remove(f'{ctx.author.id}.ebird')
 
     with open('birdcount_users.pickle', 'wb') as f:
         pickle.dump(birdcount_users, f)
