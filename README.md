@@ -8,9 +8,20 @@ BirdBot is my first attempt at making a Discord bot, retroactive to 2025-07-18. 
 ## Usage Guide
 
 In Discord, view list of commands with the `.help` command.
+
+### Importing a Checklist to eBird
+1. Download exported checklist file.
+2. Click on hyperlink to go to [eBird import page](https://ebird.org/import/upload.form?theme=ebird).
+3. Upload downloaded file and select **<u>eBird Record Format (Extended)</u>**.
+4. Import file and click **<u>fix locations</u>**.
+5. Click **<u>change</u>** and select the correct location for the checklist.
+6. Apply fixes and add missing data, including:
+   - Observation Type (Traveling, Stationary, etc.)
+   - Party Size
+
 #### **Note:** BirdBot relies heavily on [IBP/AOS 4-letter alpha codes](https://www.birdpop.org/pages/birdSpeciesCodes.php). Other birds are addable but not natively supported.
 
-## Setup (Windows)
+## Bot Setup (Windows)
 
 **1)** Clone the repository:
 ```
