@@ -74,6 +74,12 @@ class BirdCount:
             "sort": "Change sorting method for checklist.",
             "users": "Show currently active checklists."
         }
+        self.sort_help = {
+            'alpha': 'Sort checklist alphabetically.',
+            'chrono': 'Sort checklist by time observed.',
+            'count': 'Sort checklist by count.',
+            'taxonomy': 'Sort checklist by family.'
+        }
         self.formats = {
             "add": '.add <bird_name> <count>',
             "help": '.help <command>',
@@ -84,27 +90,39 @@ class BirdCount:
             "print": '.print <@user>',
             "start": '.start',
             "set": '.set <bird_name> <count>',
-            "sort": '.sort <alpha OR chrono OR taxa>',
+            "sort": '.sort <alpha OR count OR chrono OR taxa>',
             "users": ".users"
         }
 
     def add_bird(self, bird_name, count):
         if bird_name in self.birds:
+            if count == 999 or count == 9999 or count == 99999:
+                self.birds[bird_name] = 123456789
+                return f'Set {bird_name} as `Present`.'
             self.birds[bird_name] += count
             return f"Added **{count}x** {bird_name}. **{self.birds[bird_name]}** seen total!"
 
         elif bird_name.upper() in my_lovely_codes:
             if my_lovely_codes[bird_name.upper()] in self.birds:
+                if count == 999 or count == 9999 or count == 99999:
+                    self.birds[my_lovely_codes[bird_name.upper()]] = 123456789
+                    return f'Set {my_lovely_codes[bird_name.upper()]} as `Present`.'
                 self.birds[my_lovely_codes[bird_name.upper()]] += count
                 return f"Added **{count}x** {my_lovely_codes[bird_name.upper()]}. **{self.birds[my_lovely_codes[bird_name.upper()]]}** seen total!"
             else:
-                self.birds[my_lovely_codes[bird_name.upper()]] = count
                 self.birdtimes[my_lovely_codes[bird_name.upper()]] = time.time_ns()
+                if count == 999 or count == 9999 or count == 99999:
+                    self.birds[my_lovely_codes[bird_name.upper()]] = 123456789
+                    return f'Added {my_lovely_codes[bird_name.upper()]}.'
+                self.birds[my_lovely_codes[bird_name.upper()]] = count
                 return f"Added **{count}x** {my_lovely_codes[bird_name.upper()]}."
 
         else:
-            self.birds[bird_name] = count
             self.birdtimes[bird_name] = time.time_ns()
+            if count == 999 or count == 9999 or count == 99999:
+                self.birds[bird_name] = 123456789
+                return f'Added {bird_name}.'
+            self.birds[bird_name] = count
             return f"Added **{count}x** {bird_name}."
 
     def remove_bird(self, bird_name, count):
@@ -114,6 +132,10 @@ class BirdCount:
         elif bird_name.upper() in my_lovely_codes and my_lovely_codes[bird_name.upper()] in self.birds:
             temp_name = my_lovely_codes[bird_name.upper()]
         if temp_name:
+            if self.birds[temp_name] == 123456789:
+                self.birds.pop(temp_name)
+                self.birdtimes.pop(temp_name)
+                return f"Removed {temp_name}."
             if count == -1:
                 count = self.birds[temp_name]
                 self.birds.pop(temp_name)
@@ -136,10 +158,22 @@ class BirdCount:
             result = ''
             if sort == 'alpha':
                 for bird in sorted(self.birds, key = str.lower):
-                    result += f'\n- {bird} **x{self.birds.get(bird)}**'
+                    if int(self.birds.get(bird)) == 123456789:
+                        result += f'\n- {bird} **X**'
+                    else:
+                        result += f'\n- {bird} **x{self.birds.get(bird)}**'
             elif sort == 'chrono':
                 for bird in sorted(self.birdtimes.items(), key = lambda pair: pair[1]):
-                    result += f'\n- {bird[0]} **x{self.birds.get(bird[0])}**'
+                    if int(self.birds.get(bird[0])) == 123456789:
+                        result += f'\n- {bird[0]} **X**'
+                    else:
+                        result += f'\n- {bird[0]} **x{self.birds.get(bird[0])}**'
+            elif sort == 'count':
+                for bird in sorted(self.birds.items(), key = lambda pair: pair[1], reverse = True):
+                    if int(bird[1]) == 123456789:
+                        result += f'\n- {bird[0]} **X**'
+                    else:
+                        result += f'\n- {bird[0]} **x{bird[1]}**'
             else:
                 current_bird_order = {}
                 fake_birds = []
@@ -149,11 +183,18 @@ class BirdCount:
                     else:
                         fake_birds.append(bird)
                 for bird in sorted(current_bird_order.items(), key = lambda pair: pair[1]):
-                    result += f'\n- {bird[0]} **x{self.birds.get(bird[0])}**'
+                    if int(self.birds.get(bird[0])) == 123456789:
+                        result += f'\n- {bird[0]} **X**'
+                    else:
+                        result += f'\n- {bird[0]} **x{self.birds.get(bird[0])}**'
                 for fake_bird in fake_birds:
-                    result += f'\n- {fake_bird} **x{self.birds.get(fake_bird)}**'
+                    if int(self.birds.get(fake_bird)) == 123456789:
+                        result += f'\n- {fake_bird} **X**'
+                    else:
+                        result += f'\n- {fake_bird} **x{self.birds.get(fake_bird)}**'
 
             return result
+
         else:
             return "No birds seen. Better luck next time!"
 
@@ -250,9 +291,10 @@ birdusers_sort = {user: "taxonomy" for user in birdcount_users}
 
 sort_aliases = {'alpha': 'alpha', 'alphabet': 'alpha', 'alphabetic': 'alpha', 'alphabetical': 'alpha', 'alphabetically': 'alpha',
                 'chrono': 'chrono', 'chronological': 'chrono', 'chronologically': 'chrono', 'time': 'chrono', 'timed': 'chrono',
+                'amount': 'count', 'count': 'count', 'number': 'count', 'numbers': 'count', 'size': 'count',
                 'tax': 'taxonomy', 'taxa': 'taxonomy', 'taxo': 'taxonomy', 'taxon': 'taxonomy', 'taxonomy': 'taxonomy', 'taxonomically': 'taxonomy', 'family': 'taxonomy'}
 
-sort_messages = {'alpha': 'alphabetically', 'chrono': 'by time observed', 'taxonomy': 'by family'}
+sort_messages = {'alpha': 'alphabetically', 'chrono': 'by time observed', 'count': 'by count', 'taxonomy': 'by family'}
 
 @bot.event
 async def on_ready():
@@ -326,15 +368,28 @@ async def help(ctx):
         for command in birCount.cmdhelp:
             reply += ("- " + command + ": " + birCount.cmdhelp[command] + '\n')
         embed = discord.Embed(title = 'List of available commands:',colour = discord.Colour.brand_green(), description = reply + '\n')
-        embed.set_footer(text = f'Enter "help <command>" for the format of that specific command.')
+        embed.set_footer(text = f'Enter ".help <command>" for the format of that specific command.')
         await ctx.reply(embed=embed)
 
     elif len(segments) == 2:
         if str(segments[1]).lower() in birCount.formats:
             # await ctx.reply(birCount.formats[segments[1]])
-            await ctx.reply(embed=discord.Embed(title = f'{birCount.cmdhelp[str(segments[1]).lower()]}', colour = discord.Colour.brand_green(), description = birCount.formats[segments[1]]))
+            my_embed = discord.Embed(title = f'{birCount.cmdhelp[str(segments[1]).lower()]}', colour = discord.Colour.brand_green(), description = birCount.formats[segments[1]])
+            if str(segments[1]).lower() == 'add':
+                my_embed.set_footer(text = 'To mark a species as Present, add 999x.')
+            if str(segments[1]).lower() == 'sort':
+                my_embed.set_footer(text = 'For more info, enter ".help sort <method>".')
+            await ctx.reply(embed=my_embed)
         else:
             await ctx.reply(f'"{segments[1]}" is not a valid command.')
+
+    elif len(segments) == 3 and str(segments[1]).lower() == 'sort':
+        if sort_aliases[str(segments[2]).lower()] not in birCount.sort_help:
+            await ctx.reply(f'"{segments[2]}" is not a valid sort method.')
+            return
+        my_embed = discord.Embed(title=f'{birCount.sort_help[sort_aliases[str(segments[2]).lower()]]}',
+                                 colour=discord.Colour.brand_green(), description=f'.sort <{sort_aliases[str(segments[2]).lower()]}>')
+        await ctx.reply(embed=my_embed)
 
 
     # await ctx.send(f"Hello <@{801956525454917634}>!")
@@ -361,6 +416,14 @@ async def add(ctx):
 
     if not name:
         await ctx.reply("Please enter a name.")
+        return
+
+    if name in birdcount_users[ctx.author.id].birds and birdcount_users[ctx.author.id].birds[name] == 123456789:
+        await ctx.reply("You already marked this bird as `Present`!")
+        return
+
+    if name.upper() in my_lovely_codes and my_lovely_codes[name.upper()] in birdcount_users[ctx.author.id].birds and birdcount_users[ctx.author.id].birds[my_lovely_codes[name.upper()]] == 123456789:
+        await ctx.reply("You already marked this bird as `Present`!")
         return
 
     await ctx.reply(birdcount_users[ctx.author.id].add_bird(name, count))
@@ -557,6 +620,8 @@ async def done(ctx):
         embed.set_footer(text=f"Species seen: {len(user.birds)}")
         await ctx.reply(embed=embed)
 
+        # Export checklist
+
         end_timestamp = time.time()
         duration = round((end_timestamp - user.start_timestamp) / 60)
         segments = user.start_date.split()
@@ -564,7 +629,12 @@ async def done(ctx):
         with open(f'{ctx.author.id}.ebird', 'w', newline='') as csvfile:
             birdwriter = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
             for bird in user.birds:
-                birdwriter.writerow([bird] + [''] * 2 + [user.birds[bird], '', 'Please select a location.'] + [''] * 2 + [segments[0], segments[1], 'BC', 'CA', '', '', duration] + [''] * 4)
+                if int(user.birds[bird]) == 123456789:
+                    birdwriter.writerow(
+                        [bird] + [''] * 2 + ['x', '', 'Please select a location.'] + [''] * 2 + [
+                            segments[0], segments[1], 'BC', 'CA', 'historical', '', duration, 'Y'] + [''] * 3)
+                else:
+                    birdwriter.writerow([bird] + [''] * 2 + [user.birds[bird], '', 'Please select a location.'] + [''] * 2 + [segments[0], segments[1], 'BC', 'CA', 'historical', '', duration, 'Y'] + [''] * 3)
 
         await ctx.reply('Here is your exported checklist! For further instructions, refer to [GitHub](<https://github.com/markybuildy/BirdBot/blob/main/README.md#importing-a-checklist-to-ebird>).', file=discord.File(f'{ctx.author.id}.ebird'))
 
