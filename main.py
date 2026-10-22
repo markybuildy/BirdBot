@@ -1,4 +1,5 @@
 import random, time
+import numpy as np
 
 import discord
 from discord.ext import commands
@@ -39,6 +40,12 @@ my_wondrous_reader = csv.DictReader(io.StringIO(my_sexy_csv))
 
 my_lovely_codes = {row['SPEC']: row['COMMONNAME'] for row in my_wondrous_reader}
 
+arr_codes, arr_names = np.array(list(my_lovely_codes.keys())), np.array(list(my_lovely_codes.values()))
+hybrid_indices = np.where(np.char.find(arr_names, 'Hybrid') > 0)[0]
+
+for i in range(len(hybrid_indices)):
+    my_lovely_codes[arr_codes[hybrid_indices[i]]] = my_lovely_codes[arr_codes[hybrid_indices[i]]].replace('Hybrid', '(Hybrid)')
+
 
 
 # Get AviList taxonomy list.
@@ -48,7 +55,7 @@ bird_order = {}
 if os.path.exists('avilist_taxa.csv'):
     with open('avilist_taxa.csv', encoding='utf-8-sig') as csvfile:
         the_other_reader = csv.DictReader(csvfile)
-        bird_order = {row['English (United States)']: row['Sequence'] for row in the_other_reader}
+        bird_order = {row['English (United States)']: row['#'] for row in the_other_reader}
 
 else:
     print("Please download AviList taxonomy data.")
@@ -57,11 +64,11 @@ else:
 class BirdCount:
     def __init__(self):
         self.birds = {}
-        self.birdtimes = {}
+        self.bird_times = {}
         self.start_date = ''
         self.start_timestamp = 0
         self.commands = ['add','done','help','print','remove','rename', 'set']
-        self.cmdhelp = {
+        self.cmd_help = {
             "add": "Add birds.",
             "done": "Complete session.",
             "help": "Show this help menu.",
@@ -110,7 +117,7 @@ class BirdCount:
                 self.birds[my_lovely_codes[bird_name.upper()]] += count
                 return f"Added **{count}x** {my_lovely_codes[bird_name.upper()]}. **{self.birds[my_lovely_codes[bird_name.upper()]]}** seen total!"
             else:
-                self.birdtimes[my_lovely_codes[bird_name.upper()]] = time.time_ns()
+                self.bird_times[my_lovely_codes[bird_name.upper()]] = time.time_ns()
                 if count == 999 or count == 9999 or count == 99999:
                     self.birds[my_lovely_codes[bird_name.upper()]] = 123456789
                     return f'Added {my_lovely_codes[bird_name.upper()]}.'
@@ -118,7 +125,7 @@ class BirdCount:
                 return f"Added **{count}x** {my_lovely_codes[bird_name.upper()]}."
 
         else:
-            self.birdtimes[bird_name] = time.time_ns()
+            self.bird_times[bird_name] = time.time_ns()
             if count == 999 or count == 9999 or count == 99999:
                 self.birds[bird_name] = 123456789
                 return f'Added {bird_name}.'
@@ -134,12 +141,12 @@ class BirdCount:
         if temp_name:
             if self.birds[temp_name] == 123456789:
                 self.birds.pop(temp_name)
-                self.birdtimes.pop(temp_name)
+                self.bird_times.pop(temp_name)
                 return f"Removed {temp_name}."
             if count == -1:
                 count = self.birds[temp_name]
                 self.birds.pop(temp_name)
-                self.birdtimes.pop(temp_name)
+                self.bird_times.pop(temp_name)
                 return f"Removed **{count}x** {temp_name}. **0** remain."
             if count > self.birds[temp_name]:
                 return "Not enough birds to remove."
@@ -147,7 +154,7 @@ class BirdCount:
                 self.birds[temp_name] -= count
                 if self.birds[temp_name] == 0:
                     self.birds.pop(temp_name)
-                    self.birdtimes.pop(temp_name)
+                    self.bird_times.pop(temp_name)
                     return f"Removed **{count}x** {temp_name}. **0** remain."
                 return f"Removed **{count}x** {temp_name}. **{self.birds[temp_name]}** remain."
         return f'"{bird_name}" does not exist.'
@@ -163,7 +170,7 @@ class BirdCount:
                     else:
                         result += f'\n- {bird} **x{self.birds.get(bird)}**'
             elif sort == 'chrono':
-                for bird in sorted(self.birdtimes.items(), key = lambda pair: pair[1]):
+                for bird in sorted(self.bird_times.items(), key = lambda pair: pair[1]):
                     if int(self.birds.get(bird[0])) == 123456789:
                         result += f'\n- {bird[0]} **X**'
                     else:
@@ -215,14 +222,14 @@ class BirdCount:
         if not new_temp:
             if not new_bool:
                 self.birds[new_name] = self.birds[temp_name]
-                self.birdtimes[new_name] = self.birdtimes[temp_name]
+                self.bird_times[new_name] = self.bird_times[temp_name]
                 self.birds.pop(temp_name)
-                self.birdtimes.pop(temp_name)
+                self.bird_times.pop(temp_name)
                 return f"Renamed **{temp_name}** to **{new_name}**."
             self.birds[my_lovely_codes[new_name.upper()]] = self.birds[temp_name]
-            self.birdtimes[my_lovely_codes[new_name.upper()]] = self.birdtimes[temp_name]
+            self.bird_times[my_lovely_codes[new_name.upper()]] = self.bird_times[temp_name]
             self.birds.pop(temp_name)
-            self.birdtimes.pop(temp_name)
+            self.bird_times.pop(temp_name)
             return f"Renamed **{temp_name}** to **{my_lovely_codes[new_name.upper()]}**."
 
         return f'"{new_temp}" already exists.'
@@ -248,13 +255,13 @@ class BirdCount:
                 count = self.birds[temp_name]
                 self.birds[new_temp] += self.birds[temp_name]
                 self.birds.pop(temp_name)
-                self.birdtimes.pop(temp_name)
+                self.bird_times.pop(temp_name)
             else:
                 self.birds[new_temp] += count
                 self.birds[temp_name] -= count
                 if self.birds[temp_name] == 0:
                     self.birds.pop(temp_name)
-                    self.birdtimes.pop(temp_name)
+                    self.bird_times.pop(temp_name)
             return f"Moved **{count}x** {temp_name} to {new_temp}."
 
         return f'"{new_name}" does not exist.'
@@ -262,10 +269,10 @@ class BirdCount:
         # return f'"{old_name}" does not exist.'
 
     def set(self, bird_name, count):
-        if bird_name.upper() not in my_lovely_codes and bird_name not in self.birdtimes:
-            self.birdtimes[bird_name] = time.time_ns()
-        elif bird_name.upper() in my_lovely_codes and my_lovely_codes[bird_name.upper()] not in self.birdtimes:
-            self.birdtimes[my_lovely_codes[bird_name.upper()]] = time.time_ns()
+        if bird_name.upper() not in my_lovely_codes and bird_name not in self.bird_times:
+            self.bird_times[bird_name] = time.time_ns()
+        elif bird_name.upper() in my_lovely_codes and my_lovely_codes[bird_name.upper()] not in self.bird_times:
+            self.bird_times[my_lovely_codes[bird_name.upper()]] = time.time_ns()
 
         if count == 0:
             return self.remove_bird(bird_name, -1)
@@ -287,7 +294,7 @@ if not os.path.exists('birdcount_users.pickle') or os.path.getsize('birdcount_us
 with open('birdcount_users.pickle', 'rb') as f:
     birdcount_users = pickle.load(f)
 
-birdusers_sort = {user: "taxonomy" for user in birdcount_users}
+bird_users_sort = {user: "taxonomy" for user in birdcount_users}
 
 sort_aliases = {'alpha': 'alpha', 'alphabet': 'alpha', 'alphabetic': 'alpha', 'alphabetical': 'alpha', 'alphabetically': 'alpha',
                 'chrono': 'chrono', 'chronological': 'chrono', 'chronologically': 'chrono', 'time': 'chrono', 'timed': 'chrono',
@@ -345,7 +352,7 @@ async def start(ctx):
         birdcount_users[ctx.author.id].start_timestamp = time.time()
         with open('birdcount_users.pickle', 'wb') as f:
             pickle.dump(birdcount_users, f)
-        birdusers_sort[ctx.author.id] = "taxonomy"
+        bird_users_sort[ctx.author.id] = "taxonomy"
         r = random.randint(1,4)
         if r == 1:
             await ctx.reply(f'Let the adventure begin, <@{ctx.author.id}>!')
@@ -358,43 +365,48 @@ async def start(ctx):
 
 @bot.command()
 async def help(ctx):
-    birCount = BirdCount()
+    temp_bird_count = BirdCount()
 
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
     if len(segments) == 1:
         reply = ''
-        for command in birCount.cmdhelp:
-            reply += ("- " + command + ": " + birCount.cmdhelp[command] + '\n')
+        for command in temp_bird_count.cmd_help:
+            reply += ("- " + command + ": " + temp_bird_count.cmd_help[command] + '\n')
         embed = discord.Embed(title = 'List of available commands:',colour = discord.Colour.brand_green(), description = reply + '\n')
         embed.set_footer(text = f'Enter ".help <command>" for the format of that specific command.')
         await ctx.reply(embed=embed)
 
     elif len(segments) == 2:
-        if str(segments[1]).lower() in birCount.formats:
-            # await ctx.reply(birCount.formats[segments[1]])
-            my_embed = discord.Embed(title = f'{birCount.cmdhelp[str(segments[1]).lower()]}', colour = discord.Colour.brand_green(), description = birCount.formats[segments[1]])
+        if str(segments[1]).lower() in temp_bird_count.formats:
+            desc = f'{temp_bird_count.cmd_help[str(segments[1]).lower()]}'
+            my_embed = discord.Embed(title = f'{str(segments[1]).lower()}', colour = discord.Colour.brand_green(), description = desc)
+            my_embed.add_field(name = '', value = f'`{temp_bird_count.formats[segments[1]]}`')
             if str(segments[1]).lower() == 'add':
+                my_embed.add_field(name='', value='', inline=False)
                 my_embed.set_footer(text = 'To mark a species as Present, add 999x.')
             if str(segments[1]).lower() == 'sort':
+                my_embed.add_field(name='', value='', inline=False)
                 my_embed.set_footer(text = 'For more info, enter ".help sort <method>".')
             await ctx.reply(embed=my_embed)
         else:
             await ctx.reply(f'"{segments[1]}" is not a valid command.')
 
     elif len(segments) == 3 and str(segments[1]).lower() == 'sort':
-        if sort_aliases[str(segments[2]).lower()] not in birCount.sort_help:
+        if sort_aliases[str(segments[2]).lower()] not in temp_bird_count.sort_help:
             await ctx.reply(f'"{segments[2]}" is not a valid sort method.')
             return
-        my_embed = discord.Embed(title=f'{birCount.sort_help[sort_aliases[str(segments[2]).lower()]]}',
-                                 colour=discord.Colour.brand_green(), description=f'.sort <{sort_aliases[str(segments[2]).lower()]}>')
+        my_embed = discord.Embed(title=f'{segments[1].lower()} {sort_aliases[str(segments[2]).lower()]}',
+                                 colour=discord.Colour.brand_green(), description = f'{temp_bird_count.sort_help[sort_aliases[str(segments[2]).lower()]]}')
+        my_embed.add_field(name = '', value = f'`.sort {sort_aliases[str(segments[2]).lower()]}`')
+
         await ctx.reply(embed=my_embed)
 
 
     # await ctx.send(f"Hello <@{801956525454917634}>!")
 
-@bot.command()
+@bot.command(aliases = ['a'])
 async def add(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
@@ -568,7 +580,7 @@ async def move(ctx):
     with open('birdcount_users.pickle', 'wb') as f:
         pickle.dump(birdcount_users, f)
 
-@bot.command()
+@bot.command(aliases = ['p'])
 async def print(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
@@ -579,7 +591,7 @@ async def print(ctx):
         else:
             if len(birdcount_users[ctx.author.id].birds) != 0:
                 temp = '\n'
-                temp += (birdcount_users[ctx.author.id].print_results(birdusers_sort[ctx.author.id]))
+                temp += (birdcount_users[ctx.author.id].print_results(bird_users_sort[ctx.author.id]))
                 temp += ('\n' + '\n' + f'**Keep it up, <@{ctx.author.id}>!** 🤩')
                 embed = discord.Embed(title = f"Current checklist for {ctx.author.display_name}:", description=temp, colour=discord.Colour.green())
                 embed.set_footer(text=f"Species seen: {len(birdcount_users[ctx.author.id].birds)}")
@@ -595,7 +607,7 @@ async def print(ctx):
         else:
             if len(birdcount_users[temp_str].birds) != 0:
                 temp = '\n'
-                temp += (birdcount_users[temp_str].print_results(birdusers_sort[int(segments[1][2:-1])]))
+                temp += (birdcount_users[temp_str].print_results(bird_users_sort[int(segments[1][2:-1])]))
                 temp += ('\n' + '\n' + f"**All in a day's work for {segments[1]}.** 😎")
                 temp_user = ctx.guild.get_member(temp_str)
                 embed = discord.Embed(title=f"Current checklist for {temp_user.display_name}:", description=temp, colour=discord.Colour.green())
@@ -604,7 +616,7 @@ async def print(ctx):
             else:
                 await ctx.reply(f"{segments[1]} hasn't seen any birds yet. 🥀🥀")
 
-@bot.command()
+@bot.command(aliases=['end', 'stop', 'finish', 'complete', 'd', 'e'])
 async def done(ctx):
     if ctx.author.id not in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
@@ -614,7 +626,7 @@ async def done(ctx):
 
     if len(user.birds) != 0:
         temp = '\n'
-        temp += (user.print_results(birdusers_sort[ctx.author.id]))
+        temp += (user.print_results(bird_users_sort[ctx.author.id]))
         temp += ('\n' + '\n' + '**What a fruitful session!** 😄 😄 ')
         embed = discord.Embed(title="Total birds seen:", description=temp, colour=discord.Colour.green())
         embed.set_footer(text=f"Species seen: {len(user.birds)}")
@@ -625,24 +637,29 @@ async def done(ctx):
         end_timestamp = time.time()
         duration = round((end_timestamp - user.start_timestamp) / 60)
         segments = user.start_date.split()
+        better_time = segments[0].split('/')
 
-        with open(f'{ctx.author.id}.ebird', 'w', newline='') as csvfile:
-            birdwriter = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
+        file_name = f'{str(better_time[-1])}-{str(better_time[0])}-{str(better_time[1])} {str(segments[-1]).replace(':','_')}.ebird'
+
+        with open(file_name, 'w', newline='') as csvfile:
+            bird_writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
             for bird in user.birds:
                 if int(user.birds[bird]) == 123456789:
-                    birdwriter.writerow(
+                    bird_writer.writerow(
                         [bird] + [''] * 2 + ['x', '', 'Please select a location.'] + [''] * 2 + [
                             segments[0], segments[1], 'BC', 'CA', 'historical', '', duration, 'Y'] + [''] * 3)
                 else:
-                    birdwriter.writerow([bird] + [''] * 2 + [user.birds[bird], '', 'Please select a location.'] + [''] * 2 + [segments[0], segments[1], 'BC', 'CA', 'historical', '', duration, 'Y'] + [''] * 3)
+                    bird_writer.writerow([bird] + [''] * 2 + [user.birds[bird], '', 'Please select a location.'] + [''] * 2 + [segments[0], segments[1], 'BC', 'CA', 'historical', '', duration, 'Y'] + [''] * 3)
 
-        await ctx.reply('Here is your exported checklist! For further instructions, refer to [GitHub](<https://github.com/markybuildy/BirdBot/blob/main/README.md#importing-a-checklist-to-ebird>).', file=discord.File(f'{ctx.author.id}.ebird'))
+        await ctx.reply('Here is your exported checklist! For further instructions, refer to [GitHub](<https://github.com/markybuildy/BirdBot/blob/main/README.md#importing-a-checklist-to-ebird>).',
+                        file=discord.File(file_name))
+
+        os.remove(file_name)
 
     else:
-        await ctx.reply(user.print_results(birdusers_sort[ctx.author.id]))
+        await ctx.reply(user.print_results(bird_users_sort[ctx.author.id]))
 
     birdcount_users.pop(ctx.author.id)
-    os.remove(f'{ctx.author.id}.ebird')
 
     with open('birdcount_users.pickle', 'wb') as f:
         pickle.dump(birdcount_users, f)
@@ -660,7 +677,7 @@ async def sort(ctx):
         await ctx.reply("Please enter a valid sorting method. Use `.help sort` for more info.")
         return
 
-    birdusers_sort[ctx.author.id] = sort_aliases[segments[-1]]
+    bird_users_sort[ctx.author.id] = sort_aliases[segments[-1]]
     await ctx.reply(f'Sorted {sort_messages[sort_aliases[segments[-1]]]}.')
 
 @bot.command()
