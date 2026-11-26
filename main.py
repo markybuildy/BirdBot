@@ -9,7 +9,7 @@ import pickle, os
 
 import csv, urllib.request, zipfile, io
 
-
+from unicodedata import bidirectional
 
 # Discord stuff.
 
@@ -78,7 +78,9 @@ class BirdCount:
             "rename": "Rename a bird to something else.",
             'start': 'Create a checklist.',
             "set": "Set a bird's quantity.",
+            "share": "Share checklist.",
             "sort": "Change sorting method for checklist.",
+            "unshare": "Unshare checklist.",
             "users": "Show currently active checklists."
         }
         self.sort_help = {
@@ -97,7 +99,9 @@ class BirdCount:
             "print": '.print <@user>',
             "start": '.start',
             "set": '.set <bird_name> <count>',
+            "share": '.share <user>',
             "sort": '.sort <alpha OR count OR chrono OR taxa>',
+            "unshare": ".unshare <user>",
             "users": ".users"
         }
 
@@ -294,6 +298,15 @@ if not os.path.exists('birdcount_users.pickle') or os.path.getsize('birdcount_us
 with open('birdcount_users.pickle', 'rb') as f:
     birdcount_users = pickle.load(f)
 
+# Create local file to save shared users (no checklist info).
+
+if not os.path.exists('shared_users.pickle') or os.path.getsize('shared_users.pickle') == 0:
+    with open('shared_users.pickle', 'wb') as f:
+        pickle.dump({}, f)
+
+with open('shared_users.pickle', 'rb') as f:
+    shared_users = pickle.load(f)
+
 bird_users_sort = {user: "taxonomy" for user in birdcount_users}
 
 sort_aliases = {'alpha': 'alpha', 'alphabet': 'alpha', 'alphabetic': 'alpha', 'alphabetical': 'alpha', 'alphabetically': 'alpha',
@@ -302,6 +315,11 @@ sort_aliases = {'alpha': 'alpha', 'alphabet': 'alpha', 'alphabetic': 'alpha', 'a
                 'tax': 'taxonomy', 'taxa': 'taxonomy', 'taxo': 'taxonomy', 'taxon': 'taxonomy', 'taxonomy': 'taxonomy', 'taxonomically': 'taxonomy', 'family': 'taxonomy'}
 
 sort_messages = {'alpha': 'alphabetically', 'chrono': 'by time observed', 'count': 'by count', 'taxonomy': 'by family'}
+
+def valid_user(user):
+    if user[:2] == '<@' and user[-1] == '>' and user[2:-1].isnumeric():
+        return True
+    return False
 
 @bot.event
 async def on_ready():
@@ -344,7 +362,7 @@ async def on_message(message):
 
 @bot.command()
 async def start(ctx):
-    if ctx.author.id in birdcount_users:
+    if ctx.author.id in birdcount_users or ctx.author.id in shared_users:
         await ctx.reply('You already have an active checklist!')
     else:
         birdcount_users[ctx.author.id] = BirdCount()
@@ -411,7 +429,12 @@ async def add(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
-    if not ctx.author.id in birdcount_users:
+    user_id = ctx.author.id
+
+    if user_id in shared_users:
+        user_id = shared_users[user_id]
+
+    if not user_id in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
         return
 
@@ -430,15 +453,15 @@ async def add(ctx):
         await ctx.reply("Please enter a name.")
         return
 
-    if name in birdcount_users[ctx.author.id].birds and birdcount_users[ctx.author.id].birds[name] == 123456789:
+    if name in birdcount_users[user_id].birds and birdcount_users[user_id].birds[name] == 123456789:
         await ctx.reply("You already marked this bird as `Present`!")
         return
 
-    if name.upper() in my_lovely_codes and my_lovely_codes[name.upper()] in birdcount_users[ctx.author.id].birds and birdcount_users[ctx.author.id].birds[my_lovely_codes[name.upper()]] == 123456789:
+    if name.upper() in my_lovely_codes and my_lovely_codes[name.upper()] in birdcount_users[user_id].birds and birdcount_users[user_id].birds[my_lovely_codes[name.upper()]] == 123456789:
         await ctx.reply("You already marked this bird as `Present`!")
         return
 
-    await ctx.reply(birdcount_users[ctx.author.id].add_bird(name, count))
+    await ctx.reply(birdcount_users[user_id].add_bird(name, count))
 
     with open('birdcount_users.pickle', 'wb') as f:
         pickle.dump(birdcount_users, f)
@@ -448,7 +471,12 @@ async def remove(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
-    if not ctx.author.id in birdcount_users:
+    user_id = ctx.author.id
+
+    if user_id in shared_users:
+        user_id = shared_users[user_id]
+
+    if not user_id in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
         return
 
@@ -467,7 +495,7 @@ async def remove(ctx):
         await ctx.reply("Please enter a name.")
         return
 
-    await ctx.reply(birdcount_users[ctx.author.id].remove_bird(name, count))
+    await ctx.reply(birdcount_users[user_id].remove_bird(name, count))
 
     with open('birdcount_users.pickle', 'wb') as f:
         pickle.dump(birdcount_users, f)
@@ -477,7 +505,12 @@ async def set(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
-    if not ctx.author.id in birdcount_users:
+    user_id = ctx.author.id
+
+    if user_id in shared_users:
+        user_id = shared_users[user_id]
+
+    if not user_id in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
         return
 
@@ -493,7 +526,7 @@ async def set(ctx):
         await ctx.reply("Please enter a name.")
         return
 
-    await ctx.reply(birdcount_users[ctx.author.id].set(name, count))
+    await ctx.reply(birdcount_users[user_id].set(name, count))
 
     with open('birdcount_users.pickle', 'wb') as f:
         pickle.dump(birdcount_users, f)
@@ -503,7 +536,12 @@ async def rename(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
-    if not ctx.author.id in birdcount_users:
+    user_id = ctx.author.id
+
+    if user_id in shared_users:
+        user_id = shared_users[user_id]
+
+    if not user_id in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
         return
 
@@ -516,10 +554,10 @@ async def rename(ctx):
 
     for i in range(1, len(segments)):
         trial_name = " ".join(segments[1:i])
-        if trial_name.upper() in my_lovely_codes and my_lovely_codes[trial_name.upper()] in birdcount_users[ctx.author.id].birds:
+        if trial_name.upper() in my_lovely_codes and my_lovely_codes[trial_name.upper()] in birdcount_users[user_id].birds:
             longest = i
             break
-        if trial_name in birdcount_users[ctx.author.id].birds:
+        if trial_name in birdcount_users[user_id].birds:
             longest = i
 
     if longest == 0:
@@ -529,7 +567,7 @@ async def rename(ctx):
     old = " ".join(segments[1:longest])
     new = " ".join(segments[longest:])
 
-    await ctx.reply(birdcount_users[ctx.author.id].rename(old, new))
+    await ctx.reply(birdcount_users[user_id].rename(old, new))
 
     with open('birdcount_users.pickle', 'wb') as f:
         pickle.dump(birdcount_users, f)
@@ -539,7 +577,12 @@ async def move(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
-    if not ctx.author.id in birdcount_users:
+    user_id = ctx.author.id
+
+    if user_id in shared_users:
+        user_id = shared_users[user_id]
+
+    if not user_id in birdcount_users:
         await ctx.reply(f'No checklist active for <@{ctx.author.id}>.')
         return
 
@@ -562,10 +605,10 @@ async def move(ctx):
 
     for i in range(1, len(segments)):
         trial_name = " ".join(segments[1:i])
-        if trial_name.upper() in my_lovely_codes and my_lovely_codes[trial_name.upper()] in birdcount_users[ctx.author.id].birds:
+        if trial_name.upper() in my_lovely_codes and my_lovely_codes[trial_name.upper()] in birdcount_users[user_id].birds:
             longest = i
             break
-        if trial_name in birdcount_users[ctx.author.id].birds:
+        if trial_name in birdcount_users[user_id].birds:
             longest = i
 
     old = " ".join(segments[1:longest])
@@ -575,7 +618,7 @@ async def move(ctx):
         await ctx.reply("Please enter two valid names.")
         return
 
-    await ctx.reply(birdcount_users[ctx.author.id].move(old, new, count))
+    await ctx.reply(birdcount_users[user_id].move(old, new, count))
 
     with open('birdcount_users.pickle', 'wb') as f:
         pickle.dump(birdcount_users, f)
@@ -584,22 +627,35 @@ async def move(ctx):
 async def print(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
+
     if len(segments) == 1:
-        if ctx.author.id not in birdcount_users:
-            await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
+        user_id = ctx.author.id
+
+        if user_id in shared_users:
+            user_id = shared_users[ctx.author.id]
+
+        if user_id not in birdcount_users:
+            await ctx.reply(f"No checklist active for <@{user_id}>.")
 
         else:
-            if len(birdcount_users[ctx.author.id].birds) != 0:
+            if len(birdcount_users[user_id].birds) != 0:
                 temp = '\n'
-                temp += (birdcount_users[ctx.author.id].print_results(bird_users_sort[ctx.author.id]))
+                temp += (birdcount_users[user_id].print_results(bird_users_sort[user_id]))
                 temp += ('\n' + '\n' + f'**Keep it up, <@{ctx.author.id}>!** 🤩')
                 embed = discord.Embed(title = f"Current checklist for {ctx.author.display_name}:", description=temp, colour=discord.Colour.green())
-                embed.set_footer(text=f"Species seen: {len(birdcount_users[ctx.author.id].birds)}")
+                embed.set_footer(text=f"Species seen: {len(birdcount_users[user_id].birds)}")
                 await ctx.reply(embed=embed)
             else:
                 await ctx.reply("You haven't seen any birds yet. 🥀🥀")
+
+    elif not valid_user(segments[1]):
+        await ctx.reply("Please @ a valid user.")
+
     else:
         temp_str = int(str(segments[1])[2:-1])
+
+        if temp_str in shared_users:
+            temp_str = shared_users[temp_str]
 
         if temp_str not in birdcount_users:
             await ctx.reply(f"No checklist active for {segments[1]}.")
@@ -607,9 +663,10 @@ async def print(ctx):
         else:
             if len(birdcount_users[temp_str].birds) != 0:
                 temp = '\n'
-                temp += (birdcount_users[temp_str].print_results(bird_users_sort[int(segments[1][2:-1])]))
+                temp += (birdcount_users[temp_str].print_results(bird_users_sort[temp_str]))
                 temp += ('\n' + '\n' + f"**All in a day's work for {segments[1]}.** 😎")
-                temp_user = ctx.guild.get_member(temp_str)
+                temp_user = ctx.guild.get_member(int(str(segments[1])[2:-1]))
+                await ctx.reply(f'{temp_user} is {temp_str}!')
                 embed = discord.Embed(title=f"Current checklist for {temp_user.display_name}:", description=temp, colour=discord.Colour.green())
                 embed.set_footer(text=f"Species seen: {len(birdcount_users[temp_str].birds)}")
                 await ctx.reply(embed=embed)
@@ -618,6 +675,13 @@ async def print(ctx):
 
 @bot.command(aliases=['end', 'stop', 'finish', 'complete', 'd', 'e'])
 async def done(ctx):
+    if ctx.author.id in shared_users:
+        await ctx.reply(f"You have been removed from <@{shared_users[ctx.author.id]}>'s checklist.")
+        shared_users.pop(ctx.author.id)
+        with open('shared_users.pickle', 'wb') as f:
+            pickle.dump(shared_users, f)
+        return
+
     if ctx.author.id not in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
         return
@@ -664,12 +728,24 @@ async def done(ctx):
     with open('birdcount_users.pickle', 'wb') as f:
         pickle.dump(birdcount_users, f)
 
+    for key, value in shared_users.items():
+        if value == ctx.author.id:
+            shared_users.pop(key)
+
+    with open('shared_users.pickle', 'wb') as f:
+        pickle.dump(shared_users, f)
+
 @bot.command()
 async def sort(ctx):
     userinput = ctx.message.content.lower()
     segments = userinput.split()
 
-    if ctx.author.id not in birdcount_users:
+    user_id = ctx.author.id
+
+    if user_id in shared_users:
+        user_id = shared_users[user_id]
+
+    if user_id not in birdcount_users:
         await ctx.reply(f"No checklist active for <@{ctx.author.id}>.")
         return
 
@@ -677,8 +753,116 @@ async def sort(ctx):
         await ctx.reply("Please enter a valid sorting method. Use `.help sort` for more info.")
         return
 
-    bird_users_sort[ctx.author.id] = sort_aliases[segments[-1]]
+    bird_users_sort[user_id] = sort_aliases[segments[-1]]
     await ctx.reply(f'Sorted {sort_messages[sort_aliases[segments[-1]]]}.')
+
+@bot.command()
+async def share(ctx):
+    userinput = ctx.message.content.lower()
+    segments = userinput.split()
+
+    user_id = ctx.author.id
+
+    if user_id in shared_users:
+        user_id = shared_users[user_id]
+
+    if user_id not in birdcount_users:
+        await ctx.reply(f'No checklist active for <@{ctx.author.id}>.')
+        return
+
+    if len(segments) == 2 and valid_user(segments[-1]) and int(segments[-1][2:-1]) == ctx.author.id:
+        await ctx.reply(f"You can't share with yourself!")
+        return
+
+    is_valid = False
+    shared_successes = []
+
+    for user in segments[1:]:
+        if valid_user(user):
+            is_valid = True
+
+            if int(user[2:-1]) in birdcount_users or int(user[2:-1]) in shared_users:
+                await ctx.reply(f'{user} already has an active checklist!')
+                continue
+
+            shared_users[int(user[2:-1])] = user_id
+            shared_successes.append(user)
+
+    if not is_valid:
+        await ctx.reply('Please @ a valid user.')
+        return
+
+    with open('shared_users.pickle', 'wb') as f:
+        pickle.dump(shared_users, f)
+
+    if len(shared_successes) == 1:
+        await ctx.reply(f'Shared checklist with {shared_successes[0]}.')
+        return
+
+    temp = ''
+    for user in shared_successes:
+        temp += f'{user}, '
+
+    if temp:
+        await ctx.reply(f'Shared checklist with {temp[:-2]}.')
+
+    return
+
+@bot.command()
+async def unshare(ctx):
+    userinput = ctx.message.content.lower()
+    segments = userinput.split()
+
+    user_id = ctx.author.id
+
+    if user_id in shared_users:
+        await ctx.reply(f"Only the original checklist creator can use `.unshare`.")
+        return
+
+    if user_id not in birdcount_users:
+        await ctx.reply(f'No checklist active for <@{ctx.author.id}>.')
+        return
+
+    if len(segments) == 2 and valid_user(segments[-1]) and int(segments[-1][2:-1]) == ctx.author.id:
+        await ctx.reply(f"You can't unshare yourself!")
+        return
+
+    is_valid = False
+    is_shared = False
+    unshare_successes = []
+
+    for user in segments[1:]:
+        if valid_user(user):
+            is_valid = True
+
+            if int(user[2:-1]) in shared_users and shared_users[int(user[2:-1])] == user_id:
+                shared_users.pop(int(user[2:-1]))
+                unshare_successes.append(user)
+                is_shared = True
+
+    if not is_shared:
+        await ctx.reply(f"Your checklist isn't shared with anyone.")
+        return
+
+    if not is_valid or len(unshare_successes) == 0:
+        await ctx.reply('Please @ a valid user. You can check currently active users with `.users`.')
+        return
+
+    with open('shared_users.pickle', 'wb') as f:
+        pickle.dump(shared_users, f)
+
+    if len(unshare_successes) == 1:
+        await ctx.reply(f'Removed {unshare_successes[0]} from shared checklist.')
+        return
+
+    temp = ''
+    for user in unshare_successes:
+        temp += f'{user}, '
+
+    if temp:
+        await ctx.reply(f'Removed {temp[:-2]} from shared checklist.')
+
+    return
 
 @bot.command()
 async def users(ctx):
@@ -691,6 +875,10 @@ async def users(ctx):
     for user in birdcount_users:
         if ctx.guild.get_member(int(user)):
             temp += f'\n- <@{user}>: **{len(birdcount_users[user].birds)}** species seen'
+        if user in shared_users.values():
+            for key, value in shared_users.items():
+                if value == user and ctx.guild.get_member(key):
+                    temp += f'\n- <@{key}>: **{len(birdcount_users[user].birds)}** species seen (shared w/ <@{user}>)'
 
     if not temp:
         await ctx.reply("No active checklists. 😢")
